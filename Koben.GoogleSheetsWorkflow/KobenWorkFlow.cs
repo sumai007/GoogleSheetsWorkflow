@@ -147,12 +147,12 @@ namespace Koben.GoogleSheetsWorkFlow
         private void Validation(string SpreadsheetID, string path)
         {
             if (string.IsNullOrEmpty(path))
-                throw new Exception("Path to the Credential file is required refer to App.Config file");
+                throw new Exception("Path to the Credential file is required refer to Config file");
             
             if (!File.Exists(path))
-                throw new Exception("The Credential file does not exists at: "+ path+ ".Refer to App.Config file to change location");
+                throw new Exception("The Credential file does not exists at: "+ path+ ".Refer to Config file to change location");
             if (string.IsNullOrEmpty(SpreadsheetID))
-                throw new Exception("The SpreadsheetID is required refer to App.Config file ");
+                throw new Exception("The SpreadsheetID is required refer to Config file ");
 
 
         }
