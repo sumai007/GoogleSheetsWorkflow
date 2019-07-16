@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>Sumai007</authors>
+    <owners>KØben Digital</owners>
+    <licenseUrl>http://opensource.org/licenses/MIT</licenseUrl>
+    <projectUrl>https://github.com/KOBENDigital/GoogleSheetsWorkFlow</projectUrl>
+    <iconUrl>https://koben.com.au/media/1047/koben_logo.png</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Koben.GoogleSheetsWorkFlow is a workflow class to update Umbraco form data to the Google Spread Sheet.</description>
+    <copyright>Copyright 2019</copyright>
+    <tags>umbraco</tags>
+    <dependencies>
+      <dependency id="UmbracoCms.Core" version="7.15.0" />
+      <dependency id="UmbracoForms.Core" version="7.1.1" />
+      <dependency id="Google.Apis.Sheets.v4" version="1.40.2.1649" />
+    </dependencies>
+  </metadata>
+</package>
