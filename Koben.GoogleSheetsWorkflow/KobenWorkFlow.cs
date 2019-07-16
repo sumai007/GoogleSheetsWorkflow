@@ -28,9 +28,8 @@ namespace Koben.GoogleSheetsWorkFlow
 
         private readonly string[] Scopes = { SheetsService.Scope.Spreadsheets };
         private readonly string ApplicationName = "WorkFlow Test Class";
-        private readonly string SpreadsheetID = System.Configuration.ConfigurationManager.AppSettings["GoogleSheetID"];
-        private readonly string path = System.Configuration.ConfigurationManager.AppSettings["CredentialPath"]; // must be an absolute path
-        private readonly string SheetName = "WorkFlowTestSpreadSheet";
+        private readonly string SpreadsheetID;
+        private readonly string path; // must be an relative path
         private readonly SheetsService service;
 
         //Function for Umraco Workflow Icon
@@ -39,7 +38,13 @@ namespace Koben.GoogleSheetsWorkFlow
             Name = "Spread ";
             Id = new Guid("e5e089b7-b760-4ea4-a038-049c3c91d4c2");
             Description = "Update Spread sheet";
-            Icon = "icon-message";           
+            Icon = "icon-message";
+
+
+            SpreadsheetID = System.Configuration.ConfigurationManager.AppSettings["GoogleSheetID"];
+            path = System.Configuration.ConfigurationManager.AppSettings["CredentialPath"]; // must be an relative path
+
+            path = ValidateAndReturnPath(SpreadsheetID, path);
 
             GoogleCredential credential;
 
@@ -58,6 +63,8 @@ namespace Koben.GoogleSheetsWorkFlow
                 HttpClientInitializer = credential,
                 ApplicationName = ApplicationName,
             });
+
+
         }
 
         //Main function, record holds the form data
@@ -65,19 +72,18 @@ namespace Koben.GoogleSheetsWorkFlow
         {
             try
             {
-               
-                Validation(SpreadsheetID, path);
+
                 ReadSheet(record);
                 AddData(record);
 
                 return WorkflowExecutionStatus.Completed;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 LogHelper.Info(typeof(KobenWorkFlow), ex.ToString());
                 return WorkflowExecutionStatus.Failed;
             }
-           
+
         }
 
         //Add Record function
@@ -144,17 +150,19 @@ namespace Koben.GoogleSheetsWorkFlow
             }
         }
 
-        private void Validation(string SpreadsheetID, string path)
+        private string ValidateAndReturnPath(string SpreadsheetID, string path)
         {
-            if (string.IsNullOrEmpty(path))
+            if (string.IsNullOrWhiteSpace(path))
                 throw new Exception("Path to the Credential file is required refer to Config file");
-            
-            if (!File.Exists(path))
-                throw new Exception("The Credential file does not exists at: "+ path+ ".Refer to Config file to change location");
-            if (string.IsNullOrEmpty(SpreadsheetID))
+
+            var tempPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path);
+
+            if (!File.Exists(tempPath))
+                throw new Exception("The Credential file does not exists at: " + tempPath + ".Refer to Config file to change location");
+            if (string.IsNullOrWhiteSpace(SpreadsheetID))
                 throw new Exception("The SpreadsheetID is required refer to Config file ");
 
-
+            return tempPath;
         }
 
 
