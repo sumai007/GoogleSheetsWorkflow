@@ -25,46 +25,45 @@ namespace Koben.GoogleSheetsWorkFlow
 {
     public class KobenWorkFlow : WorkflowType
     {
+        [Umbraco.Forms.Core.Attributes.Setting("Google Spread Sheet ID", alias = "spreadsheetID", description = "This is the Id of the spreadsheet you want data from this form to go")]
+        public string SpreadsheetID { get; set; }
 
         private readonly string[] Scopes = { SheetsService.Scope.Spreadsheets };
         private readonly string ApplicationName = "WorkFlow Test Class";
-        private readonly string SpreadsheetID;
-        private readonly string path; // must be an relative path
-        private readonly SheetsService service;
+        string path = System.Configuration.ConfigurationManager.AppSettings["CredentialPath"]; // must be an relative path
+        private SheetsService service;
 
         //Function for Umraco Workflow Icon
         public KobenWorkFlow()
         {
-            Name = "Spread ";
-            Id = new Guid("e5e089b7-b760-4ea4-a038-049c3c91d4c2");
+            Name = "Send to Google Spreadsheet Workflow";
+            Id = new Guid("e4e60c47-eb0b-4ab2-8739-bd48a3312127");
             Description = "Update Spread sheet";
             Icon = "icon-message";
+            Group = "Google Sheets";
+            ValidateAndReturnPath(SpreadsheetID, path);
+            
+        }
 
+        public override List<Exception> ValidateSettings()
+        {
+            List<Exception> exceptions = new List<Exception>();
 
-            SpreadsheetID = System.Configuration.ConfigurationManager.AppSettings["GoogleSheetID"];
-            path = System.Configuration.ConfigurationManager.AppSettings["CredentialPath"]; // must be an relative path
+            if (string.IsNullOrWhiteSpace(SpreadsheetID))
+                exceptions.Add(new Exception("The SpreadsheetID is required  "));
 
-            path = ValidateAndReturnPath(SpreadsheetID, path);
+            
 
-            GoogleCredential credential;
-
-            using (var stream =
-                 new FileStream(path, FileMode.Open, FileAccess.Read))
+            try
             {
-                // The file token.json stores the user's access and refresh tokens, and is created
-                // automatically when the authorization flow completes for the first time.
-                credential = GoogleCredential.FromStream(stream).CreateScoped(Scopes);
-
+                ValidateAndReturnPath(SpreadsheetID, path);
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
             }
 
-            // Create Google Sheets API service.
-            service = new SheetsService(new BaseClientService.Initializer()
-            {
-                HttpClientInitializer = credential,
-                ApplicationName = ApplicationName,
-            });
-
-
+            return exceptions;
         }
 
         //Main function, record holds the form data
@@ -72,9 +71,47 @@ namespace Koben.GoogleSheetsWorkFlow
         {
             try
             {
+         //       GoogleCredential credential;
+                string path = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, System.Configuration.ConfigurationManager.AppSettings["CredentialPath"]);
 
-                ReadSheet(record);
-                AddData(record);
+                /*          using (var stream =
+                           new FileStream(path, FileMode.Open, FileAccess.Read))
+                          {
+                              // The file token.json stores the user's access and refresh tokens, and is created
+                              // automatically when the authorization flow completes for the first time.
+                              credential = GoogleCredential.FromStream(stream).CreateScoped(Scopes);
+
+                          }
+                          */
+
+                UserCredential credential;
+                
+                using (var stream =
+                    new FileStream(path, FileMode.Open, FileAccess.Read))
+                {
+                    // The file token.json stores the user's access and refresh tokens, and is created
+                    // automatically when the authorization flow completes for the first time.
+                    string credPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"token.json");
+                    credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
+                            GoogleClientSecrets.Load(stream).Secrets,
+                            Scopes,
+                            "user",
+                            CancellationToken.None,
+                            new FileDataStore(credPath, true)).Result;
+
+
+                }
+                // Create Google Sheets API service.
+                service = new SheetsService(new BaseClientService.Initializer()
+                {
+                    HttpClientInitializer = credential,
+                    ApplicationName = ApplicationName,
+                });
+
+
+                ReadSheet(record);                 //Read Sheet If empty add headers
+                CheckForNewHeader(record);         //Check for new If only new fileds ot the form are added update the sheet Note: No action taken if fields fromm the form are deleted 
+                AddData(record);                  // Add data to the sheet
 
                 return WorkflowExecutionStatus.Completed;
             }
@@ -138,7 +175,7 @@ namespace Koben.GoogleSheetsWorkFlow
 
         private void ReadSheet(Record record)
         {
-            var range = "A:Z";
+            var range = "A1:Z1";
             SpreadsheetsResource.ValuesResource.GetRequest request = service.Spreadsheets.Values.Get(SpreadsheetID, range);
             var response = request.Execute();
 
@@ -150,6 +187,56 @@ namespace Koben.GoogleSheetsWorkFlow
             }
         }
 
+        // Considering the Fields are only added to the Umbraco form 
+        private void CheckForNewHeader(Record record)
+        {
+
+            var range = "A1:Z1";
+            SpreadsheetsResource.ValuesResource.GetRequest request =
+                    service.Spreadsheets.Values.Get(SpreadsheetID, range);
+
+            var response = request.Execute();
+            // IList<IList<object>> values = response.Values;
+
+            if (record.RecordFields.Count == response.Values[0].Count)
+            {
+                return;
+            }
+            else if (record.RecordFields.Count > response.Values[0].Count)
+            {
+                CreateNewheaders(record);
+            }
+            else
+            {
+                return;
+            }
+
+        }
+
+        private void CreateNewheaders(Record record)
+        {
+            var range = "A1:Z1";
+            var valueRange = new ValueRange();
+
+            var objectlist = new List<object>();
+            foreach (var field in record.RecordFields)
+            {
+
+                objectlist.Add(field.Value.Alias);
+
+
+            }
+
+            IList<IList<object>> values = new List<IList<object>> { objectlist };
+            valueRange.Values = values;
+
+
+            var updateRequest = service.Spreadsheets.Values.Update(valueRange, SpreadsheetID, range);
+            updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
+            var appendResponse = updateRequest.Execute();
+
+        }
+
         private string ValidateAndReturnPath(string SpreadsheetID, string path)
         {
             if (string.IsNullOrWhiteSpace(path))
@@ -158,19 +245,13 @@ namespace Koben.GoogleSheetsWorkFlow
             var tempPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, path);
 
             if (!File.Exists(tempPath))
-                throw new Exception("The Credential file does not exists at: " + tempPath + ".Refer to Config file to change location");
-            if (string.IsNullOrWhiteSpace(SpreadsheetID))
-                throw new Exception("The SpreadsheetID is required refer to Config file ");
+                throw new Exception("The Credential file does not exists at: " + tempPath + ".Refer to Config file to change location");            
 
             return tempPath;
         }
 
 
 
-        public override List<Exception> ValidateSettings()
-        {
-            var exceptions = new List<Exception>();
-            return exceptions;
-        }
+        
     }
 }

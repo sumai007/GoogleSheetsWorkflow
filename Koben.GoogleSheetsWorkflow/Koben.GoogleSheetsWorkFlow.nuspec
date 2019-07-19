@@ -14,8 +14,8 @@
     <copyright>Copyright 2019</copyright>
     <tags>umbraco</tags>
     <dependencies>
-      <dependency id="UmbracoCms.Core" version="7.15.0" />
-      <dependency id="UmbracoForms.Core" version="7.1.1" />
+      <dependency id="UmbracoCms.Core" version="7.6.1" />
+      <dependency id="UmbracoForms.Core" version="6.0.2" />
       <dependency id="Google.Apis.Sheets.v4" version="1.40.2.1649" />
     </dependencies>
   </metadata>
